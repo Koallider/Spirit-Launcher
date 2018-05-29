@@ -31,12 +31,12 @@ dependencies {
     implementation 'com.android.support:cardview-v7:27.1.1'
     implementation 'com.android.support.constraint:constraint-layout:1.1.0'
 
-    implementation ("org.jetbrains.anko:anko:0.10.2")
-    implementation ("org.jetbrains.anko:anko-commons:0.10.2")
+    implementation ("org.jetbrains.anko:anko:0.10.5")
+    implementation ("org.jetbrains.anko:anko-commons:0.10.5")
     implementation ("com.android.support:recyclerview-v7:27.1.1")
-    implementation ("org.jetbrains.anko:anko-appcompat-v7:0.10.2")
-    implementation ("org.jetbrains.anko:anko-recyclerview-v7:0.10.2")
-
+    implementation ("org.jetbrains.anko:anko-appcompat-v7:0.10.5")
+    implementation ("org.jetbrains.anko:anko-recyclerview-v7:0.10.5")
+    implementation 'de.hdodenhof:circleimageview:2.2.0'
     implementation ('com.hannesdorfmann.mosby3:mvp:3.0.4')
     implementation ('com.hannesdorfmann.mosby3:viewstate:3.0.4')
     implementation ('org.greenrobot:eventbus:3.0.0')

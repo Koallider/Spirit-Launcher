@@ -11,13 +11,14 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.android.synthetic.main.app_list_item.view.*
 import org.jetbrains.anko.sdk25.coroutines.onClick
+import org.jetbrains.anko.sdk25.coroutines.onLongClick
 import ru.ryakovlev.spiritlauncher.R
 import ru.ryakovlev.spiritlauncher.domain.ApplicationInfo
 
 /**
  * Created by roma on 28.05.2018.
  */
-class ApplicationInfoAdapter(private val applications: List<ApplicationInfo>, private val clickListener: (ApplicationInfo) -> Unit)
+class ApplicationInfoAdapter(var applications: MutableList<ApplicationInfo>, private val clickListener: (ApplicationInfo) -> Unit, private val longClickListener: (ApplicationInfo, Int) -> Unit)
     : RecyclerView.Adapter<ApplicationInfoAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
@@ -28,6 +29,7 @@ class ApplicationInfoAdapter(private val applications: List<ApplicationInfo>, pr
         holder.label.text = item.label
         holder.icon.setImageDrawable(item.icon)
         holder.container.onClick { clickListener(item) }
+        holder.container.onLongClick { longClickListener(item, position) }
     }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {

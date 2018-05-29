@@ -1,5 +1,8 @@
 package ru.ryakovlev.spiritlauncher
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.LauncherApps
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.content.ContextCompat
@@ -9,6 +12,7 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import ru.ryakovlev.spiritlauncher.base.view.applist.AppListView
+import ru.ryakovlev.spiritlauncher.event.ShortcutEvent
 import ru.ryakovlev.spiritlauncher.event.StartApplicationEvent
 
 
@@ -39,5 +43,12 @@ class MainActivity : AppCompatActivity() {
     fun startApplication(event: StartApplicationEvent){
         val launchIntent = packageManager.getLaunchIntentForPackage(event.applicationInfo.packageName.toString())
         startActivity(launchIntent)
+    }
+
+    @SuppressLint("NewApi")
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun startApplicationShortcut(event: ShortcutEvent){
+        val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+        launcherApps.startShortcut(event.shortcut.shortcutInfo, null, null)
     }
 }
