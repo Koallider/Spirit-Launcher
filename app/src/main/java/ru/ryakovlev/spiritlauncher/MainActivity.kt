@@ -11,8 +11,11 @@ import android.view.View
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import ru.ryakovlev.spiritlauncher.base.view.HomeScreenView
 import ru.ryakovlev.spiritlauncher.base.view.applist.AppListView
+import ru.ryakovlev.spiritlauncher.event.DragAppEndEvent
 import ru.ryakovlev.spiritlauncher.event.ShortcutEvent
+import ru.ryakovlev.spiritlauncher.event.ShowAppListEvent
 import ru.ryakovlev.spiritlauncher.event.StartApplicationEvent
 
 
@@ -25,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         EventBus.getDefault().register(this)
 
         val fragmentTransaction = supportFragmentManager.beginTransaction()
-        fragmentTransaction.replace(R.id.container, AppListView()).commit()
+        fragmentTransaction.replace(R.id.container, HomeScreenView()).commit()
 
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -40,8 +43,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
+    fun dragApplicationEnded(event: DragAppEndEvent){
+        supportFragmentManager.popBackStack()
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun showApplicationList(event: ShowAppListEvent){
+        val fragmentTransaction = supportFragmentManager.beginTransaction()
+        fragmentTransaction.addToBackStack("appList")
+        fragmentTransaction.replace(R.id.containerAppList, AppListView()).commit()
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
     fun startApplication(event: StartApplicationEvent){
-        val launchIntent = packageManager.getLaunchIntentForPackage(event.applicationInfo.packageName.toString())
+        val launchIntent = packageManager.getLaunchIntentForPackage(event.packageName)
         startActivity(launchIntent)
     }
 

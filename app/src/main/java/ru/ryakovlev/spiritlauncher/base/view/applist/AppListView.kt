@@ -28,6 +28,9 @@ import ru.ryakovlev.spiritlauncher.base.presenter.AppListPresenter
 import ru.ryakovlev.spiritlauncher.base.view.BaseFragment
 import ru.ryakovlev.spiritlauncher.domain.ApplicationInfo
 import ru.ryakovlev.spiritlauncher.domain.Shortcut
+import android.content.ClipData
+import android.content.ClipDescription.MIMETYPE_TEXT_PLAIN
+import android.view.View.GONE
 
 
 /**
@@ -63,7 +66,18 @@ class AppListView : AppListPresenter.View, BaseFragment<AppListView, AppListPres
                 presenter.filterTextChanged(text.toString())
             }
         }
-        adapter = ApplicationInfoAdapter(ArrayList<ApplicationInfo>(), {presenter.appClicked(it)},  {app, position->presenter.appLongTap(context!!, app, position)})
+        adapter = ApplicationInfoAdapter(ArrayList<ApplicationInfo>())
+
+        adapter.clickListener = {presenter.appClicked(it)}
+        adapter.longClickListener = {position->
+            longClickConfirm()
+            presenter.appLongTap(context!!, position)
+        }
+        adapter.moveListener = {position->
+            presenter.appMoved(position)
+            longClickConfirm()
+        }
+
         appList.adapter = adapter
         presenter.load(context!!)
     }
@@ -98,27 +112,24 @@ class AppListView : AppListPresenter.View, BaseFragment<AppListView, AppListPres
             val recyclerHeight = shortcutList.size * dip(54)//TODO hardcoded shortcut item height
             if(height < location[1] + anchor.height + recyclerHeight) {
                 shortcutPopup!!.showAtLocation(anchor, Gravity.NO_GRAVITY, location[0] + anchor.width / 2, location[1] - recyclerHeight)
-                shortcutRecyclerView.layoutAnimation = getAnimation(true)
+                shortcutRecyclerView.layoutAnimation = getShortcutAnimation(true)
             }else{
                 shortcutPopup!!.showAtLocation(anchor, Gravity.NO_GRAVITY, location[0] + anchor.width / 2, location[1] + anchor.height - dip(20))
-                shortcutRecyclerView.layoutAnimation = getAnimation(false)
+                shortcutRecyclerView.layoutAnimation = getShortcutAnimation(false)
             }
         }
     }
 
-    fun getWindowHeight() : Int{
-        val display = activity?.windowManager?.defaultDisplay
-        val size = Point()
-        display?.getSize(size)
-        return size.y
-    }
+    override fun dragApp(position: Int){
+        shortcutPopup?.dismiss()
 
-    fun getAnimation(isOnTop: Boolean) : LayoutAnimationController{
-        val resId = if(isOnTop){
-            R.anim.layout_animation_slide
-        }else{
-            R.anim.layout_animation_slide
-        }
-        return AnimationUtils.loadLayoutAnimation(context, resId)
+        val anchor = appList.findViewHolderForAdapterPosition(position).itemView;
+
+        val data = ClipData.newPlainText("", "")
+        val shadowBuilder = View.DragShadowBuilder(
+                anchor)
+        anchor.startDrag(data, shadowBuilder, anchor, 0)
+        //anchor.visibility = View.INVISIBLE
+        root.visibility = GONE
     }
 }
