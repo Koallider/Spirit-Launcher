@@ -26,20 +26,18 @@ import ru.ryakovlev.spiritlauncher.event.*
  */
 class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() {
 
-    private var appList: LiveData<List<HomeScreenIcon>>? = null;
+    private var appList: MutableList<HomeScreenIcon>? = null;
 
 
     fun load(context: Context) {
 
         async(UI) {
-            val data: Deferred<LiveData<List<HomeScreenIcon>>> = bg {
+            val data: Deferred<List<HomeScreenIcon>> = bg {
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().getAll()
             }
-            appList = data.await()
+            appList = data.await().toMutableList()
             view.showAppList(appList!!)
         }
-
-
     }
 
     fun appListCLicked() {
@@ -50,7 +48,8 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
         async(UI) {
             bg {
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().delete(droppedItem)
-
+                appList?.remove(droppedItem)
+                view.deleteItem(droppedItem)
                 dragEnded(context, x, y, droppedItem.packageNameList, droppedItem)
             }
         }
@@ -66,17 +65,23 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
 
 
     private fun dragEnded(context: Context, x: Int, y: Int, packageNameList: List<String>, droppedItem: HomeScreenIcon?) {
-        val icon = appList?.value?.firstOrNull { it.x == x && it.y == y }
+        val icon = appList?.firstOrNull { it.x == x && it.y == y }
         icon?.let {
             if(droppedItem != null && icon.id == droppedItem.id){
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().insert(it)
+                appList?.add(it)
+                view.updateItem(it)
             }else {
-                val newIcon = it.copy(packageNameList = it.packageNameList + packageNameList)
-                HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().deleteAndInsert(it, newIcon)
+                it.packageNameList = it.packageNameList + packageNameList
+                HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(it)
+                view.updateItem(it)
             }
 
         } ?: run {
-            HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().insert(HomeScreenIcon(x, y, packageNameList))
+            val newIcon = HomeScreenIcon(0, x, y, packageNameList)
+            newIcon.id = HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().insert(newIcon)
+            appList?.add(newIcon)
+            view.updateItem(newIcon)
         }
         EventBus.getDefault().post(DragAppEndEvent())
     }
@@ -135,7 +140,7 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
                     dragApp(position)
                 }
             } catch (e: SecurityException){
-                Toast.makeText(context, R.string.warning_not_default, Toast.LENGTH_SHORT).show()
+                //Toast.makeText(context, R.string.warning_not_default, Toast.LENGTH_SHORT).show()
                 //TODO set as default
                 dragApp(position)
             }
@@ -157,8 +162,9 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
             bg {
                 val newList = folderIcon.packageNameList.toMutableList()
                 newList.removeAt(folderIcon.packageNameList.indexOfFirst { it == packageName })
-                val newIcon = folderIcon.copy(packageNameList = newList)
-                HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().deleteAndInsert(folderIcon, newIcon)
+                folderIcon.packageNameList = newList
+                HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(folderIcon)
+                view.updateItem(folderIcon)
             }
         }
     }
@@ -173,7 +179,7 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
     }
 
     interface View : MvpView {
-        fun showAppList(appList: LiveData<List<HomeScreenIcon>>)
+        fun showAppList(appList: List<HomeScreenIcon>)
 
         fun dragApp(x: Int, y: Int)
 
@@ -183,7 +189,11 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
 
         fun showShortcuts(shortcutList: List<Shortcut>, x: Int, y: Int)
 
-        fun showShortcuts(shortcutList: List<Shortcut>, position: Int);
+        fun showShortcuts(shortcutList: List<Shortcut>, position: Int)
+
+        fun updateItem(item: HomeScreenIcon)
+
+        fun deleteItem(item: HomeScreenIcon)
     }
 
 }

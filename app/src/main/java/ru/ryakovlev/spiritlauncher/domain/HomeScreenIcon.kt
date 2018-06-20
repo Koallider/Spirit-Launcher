@@ -8,11 +8,12 @@ import android.arch.persistence.room.PrimaryKey
  */
 @Entity
 data class HomeScreenIcon(
+        @PrimaryKey(autoGenerate = true) override var id: Long = 0,
         override var x: Int,
         override var y: Int,
-        val packageNameList: List<String>,
+        var packageNameList: List<String>,
         var name: String = "") : HomeScreenItem {
-    @PrimaryKey(autoGenerate = true) override var id: Long = 0
+
     override var width: Int = 1
     override var height: Int = 1
 

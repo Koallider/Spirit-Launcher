@@ -21,6 +21,8 @@ import android.widget.*
 import kotlinx.android.synthetic.main.app_list_fragment.*
 import kotlinx.android.synthetic.main.folder_item.*
 import kotlinx.android.synthetic.main.home_screen_fragment.*
+import kotlinx.coroutines.experimental.android.UI
+import kotlinx.coroutines.experimental.launch
 import org.jetbrains.anko.*
 import org.jetbrains.anko.sdk25.coroutines.onClick
 import org.jetbrains.anko.sdk25.coroutines.onLongClick
@@ -42,15 +44,16 @@ import ru.ryakovlev.spiritlauncher.widgets.DropPanel
  */
 class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, HomeScreenPresenter<HomeScreenView>>() {
 
+
     lateinit var panels: ArrayList<ArrayList<DropPanel>>
 
     var folderPopupItem: HomeScreenIcon? = null
     var appListView: RecyclerView? = null
     var shortcutPopup: PopupWindow? = null
 
-    override fun showAppList(appList: LiveData<List<HomeScreenIcon>>) {
-        appList.observe(this, Observer { showList(it) })
-        //showList(appList.value)
+    override fun showAppList(appList: List<HomeScreenIcon>) {
+        //appList.observe(this, Observer { showList(it) })
+        showList(appList)
     }
 
     private fun showList(list: List<HomeScreenIcon>?) {
@@ -66,6 +69,25 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
                 )
 
             }
+        }
+    }
+
+    override fun updateItem(item: HomeScreenIcon) {
+        launch(UI) {
+            panels[item.x][item.y].removeAllViews()
+            panels[item.x][item.y].addView(
+                    if (item.packageNameList.size == 1) {
+                        createAppView(item)
+                    } else {
+                        createFolderView(item)
+                    }
+            )
+        }
+    }
+
+    override fun deleteItem(item: HomeScreenIcon) {
+        launch(UI) {
+            panels[item.x][item.y].removeAllViews()
         }
     }
 
@@ -91,7 +113,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             view.find<ImageView>(R.id.icon).setImageDrawable(iconView)
 
             val touchListener = TouchListener(icon)
-            touchListener.clickListener = { presenter.onIconClick(icon)}
+            touchListener.clickListener = { presenter.onIconClick(icon) }
             touchListener.longClickListener = {
                 longClickConfirm()
                 presenter.onIconLongClick(activity!!, icon)
@@ -228,27 +250,27 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
     @TargetApi(Build.VERSION_CODES.N_MR1)
     private fun showShortcuts(shortcutList: List<Shortcut>, anchor: View?) {
         shortcutPopup?.dismiss()
-        if(anchor!= null && shortcutList.isNotEmpty()){
-            val location = IntArray(2, {0})
+        if (anchor != null && shortcutList.isNotEmpty()) {
+            val location = IntArray(2, { 0 })
             anchor.getLocationOnScreen(location)
 
             val shortcutRecyclerView = RecyclerView(context)
             shortcutRecyclerView.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
-            shortcutRecyclerView.adapter = ShortcutAdapter(shortcutList = shortcutList, clickListener = {
-                shortcut: Shortcut -> presenter.shortcutClicked(shortcut)
+            shortcutRecyclerView.adapter = ShortcutAdapter(shortcutList = shortcutList, clickListener = { shortcut: Shortcut ->
+                presenter.shortcutClicked(shortcut)
                 shortcutPopup?.dismiss()
                 dismissFolderPopup()
             })
             val launcherApps = activity?.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-            shortcutList.forEach{it.drawable = launcherApps.getShortcutIconDrawable(it.shortcutInfo,  resources.displayMetrics.densityDpi)}
+            shortcutList.forEach { it.drawable = launcherApps.getShortcutIconDrawable(it.shortcutInfo, resources.displayMetrics.densityDpi) }
 
             val height = getWindowHeight()
             shortcutPopup = PopupWindow(shortcutRecyclerView, wrapContent, wrapContent, true)
             val recyclerHeight = shortcutList.size * dip(54)//TODO hardcoded shortcut item height
-            if(height < location[1] + anchor.height + recyclerHeight) {
+            if (height < location[1] + anchor.height + recyclerHeight) {
                 shortcutPopup!!.showAtLocation(anchor, Gravity.NO_GRAVITY, location[0] + anchor.width / 2, location[1] - recyclerHeight)
                 shortcutRecyclerView.layoutAnimation = getShortcutAnimation(true)
-            }else{
+            } else {
                 shortcutPopup!!.showAtLocation(anchor, Gravity.NO_GRAVITY, location[0] + anchor.width / 2, location[1] + anchor.height - dip(20))
                 shortcutRecyclerView.layoutAnimation = getShortcutAnimation(false)
             }
@@ -295,7 +317,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             val app = activity?.packageManager?.getApplicationInfo(it, 0)
             ApplicationInfo(packageManager?.getApplicationLabel(app) ?: "", it, packageManager?.getApplicationIcon(app))
         }.toMutableList()
-        appListView!!.layoutManager = GridLayoutManager(activity, if(item.packageNameList.size > 4) 4 else item.packageNameList.size)
+        appListView!!.layoutManager = GridLayoutManager(activity, if (item.packageNameList.size > 4) 4 else item.packageNameList.size)
         appListView!!.isNestedScrollingEnabled = false
 
         val adapter = ApplicationInfoAdapter(appList)
@@ -304,11 +326,11 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             dismissFolderPopup()
             presenter.appClicked(adapter.applications[it])
         }
-        adapter.longClickListener = {position->
+        adapter.longClickListener = { position ->
             longClickConfirm()
             presenter.appLongTap(context!!, adapter.applications[position], position)
         }
-        adapter.moveListener = {position->
+        adapter.moveListener = { position ->
             presenter.appMoved(position)
             longClickConfirm()
         }
@@ -328,10 +350,10 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             val folderHeidht = cardView.measuredHeight
             val folderWidth = cardView.measuredWidth
 
-            val halfAnchorWidth= anchor.width / 2
-            fun getFolderLeftMargin() = if(windowWidth < location[0] + halfAnchorWidth + folderWidth) {
+            val halfAnchorWidth = anchor.width / 2
+            fun getFolderLeftMargin() = if (windowWidth < location[0] + halfAnchorWidth + folderWidth) {
                 location[0] + halfAnchorWidth - (location[0] + halfAnchorWidth + folderWidth - windowWidth + dip(16))
-            }else{
+            } else {
                 location[0] + halfAnchorWidth
             }
 
@@ -351,12 +373,12 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         }
     }
 
-    private fun dismissFolderPopup(){
+    private fun dismissFolderPopup() {
         folderPanel.removeAllViews()
         folderPopupItem = null
     }
 
-    override fun dragApp(position: Int){
+    override fun dragApp(position: Int) {
         shortcutPopup?.dismiss()
         val anchor = appListView?.findViewHolderForAdapterPosition(position)?.itemView;
 

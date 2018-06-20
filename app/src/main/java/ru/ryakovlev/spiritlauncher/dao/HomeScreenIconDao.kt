@@ -13,10 +13,10 @@ import ru.ryakovlev.spiritlauncher.domain.HomeScreenIcon
 interface HomeScreenIconDao {
 
     @Query("SELECT * from homeScreenIcon")
-    fun getAll(): LiveData<List<HomeScreenIcon>>
+    fun getAll(): List<HomeScreenIcon>
 
     @Insert(onConflict = REPLACE)
-    fun insert(icon: HomeScreenIcon)
+    fun insert(icon: HomeScreenIcon) : Long
 
     @Update(onConflict = REPLACE)
     fun update(icon: HomeScreenIcon)

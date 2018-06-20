@@ -63,8 +63,9 @@ class AppListPresenter<V : AppListPresenter.View> : MvpBasePresenter<V>() {
                     dragApp(position)
                 }
             } catch (e: SecurityException){
-                Toast.makeText(context, R.string.warning_not_default, Toast.LENGTH_SHORT).show()
+                //Toast.makeText(context, R.string.warning_not_default, Toast.LENGTH_SHORT).show()
                 //TODO set as default
+                dragApp(position)
             }
         }else{
             dragApp(position)
