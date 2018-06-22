@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -7,12 +8,46 @@
     android:layout_margin="4dp"
     android:background="?android:attr/selectableItemBackground">
 
-    <ImageView
-        android:layout_width="60dp"
-        android:layout_height="60dp"
-        android:layout_gravity="center_horizontal"
-        android:src="@mipmap/ic_launcher"
-        android:id="@+id/icon"/>
+
+    <RelativeLayout
+        android:layout_width="76dp"
+        android:layout_height="76dp"
+        android:layout_gravity="center_horizontal|center_vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <android.support.v7.widget.CardView
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                app:cardCornerRadius="38dp"
+                app:cardBackgroundColor="#70ffffff"
+                android:id="@+id/hover"
+                android:layout_gravity="center_horizontal|center_vertical"
+                android:visibility="invisible"
+                >
+
+                <android.support.v7.widget.CardView
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    app:cardCornerRadius="34dp"
+                    android:layout_gravity="center_horizontal|center_vertical"
+                    app:cardBackgroundColor="#aaffffff">
+
+                </android.support.v7.widget.CardView>
+            </android.support.v7.widget.CardView>
+        </FrameLayout>
+
+
+        <ImageView
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_centerInParent="true"
+            android:src="@mipmap/ic_launcher"
+            android:id="@+id/icon"/>
+
+    </RelativeLayout>
+
 
     <TextView
         android:id="@+id/label"
@@ -22,7 +57,7 @@
         android:fontFamily="sans-serif-condensed"
         android:gravity="center_horizontal"
         android:lines="1"
-        android:padding="8dp"
+        android:padding="4dp"
         android:text="test"
         android:textSize="14sp" />
 

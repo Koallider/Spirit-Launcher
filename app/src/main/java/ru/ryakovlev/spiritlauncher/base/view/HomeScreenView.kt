@@ -1,5 +1,7 @@
 package ru.ryakovlev.spiritlauncher.base.view
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
 import android.arch.lifecycle.LiveData
 import android.arch.lifecycle.Observer
@@ -17,6 +19,7 @@ import android.support.v7.widget.*
 import android.support.v7.widget.GridLayout
 import android.view.*
 import android.view.View.*
+import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import kotlinx.android.synthetic.main.app_list_fragment.*
 import kotlinx.android.synthetic.main.folder_item.*
@@ -26,6 +29,7 @@ import kotlinx.coroutines.experimental.launch
 import org.jetbrains.anko.*
 import org.jetbrains.anko.sdk25.coroutines.onClick
 import org.jetbrains.anko.sdk25.coroutines.onLongClick
+import org.jetbrains.anko.sdk25.coroutines.textChangedListener
 import org.jetbrains.anko.support.v4.dip
 import ru.ryakovlev.spiritlauncher.R
 import ru.ryakovlev.spiritlauncher.adapter.ApplicationInfoAdapter
@@ -168,8 +172,6 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         val param = GridLayout.LayoutParams()
         param.height = 0
         param.width = 0
-        param.rightMargin = 5
-        param.topMargin = 5
         param.setGravity(Gravity.FILL)
         param.columnSpec = GridLayout.spec(x, 1f)
         param.rowSpec = GridLayout.spec(y, 1f)
@@ -182,10 +184,12 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        pager.useDefaultMargins = false
+
         panels = ArrayList()
         appListButton.onClick { presenter.appListCLicked() }
         val dragListener = MyDragListener()
-        for (i in 0 until 4) {
+        for (i in 0 until 5) {
             panels.add(ArrayList())
             for (j in 0 until 5) {
                 val layout = DropPanel(this.context!!, i, j)
@@ -210,8 +214,33 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
                     dropped = false
                 }
                 DragEvent.ACTION_DRAG_ENTERED -> {
+                    val container = v as DropPanel
+                    container.forEachChild {
+
+                        val hoverView = it.find<CardView>(R.id.hover)
+                        hoverView.alpha = 0.0f
+                        hoverView.visibility = VISIBLE
+                        hoverView.animate()
+                                .alpha(1.0f)
+                                .setDuration(300).setListener(object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator?) {
+                                hoverView.visibility = VISIBLE
+                            }
+                        })
+                    }
                 }
                 DragEvent.ACTION_DRAG_EXITED -> {
+                    val container = v as DropPanel
+                    container.forEachChild {
+                        val hoverView = it.find<CardView>(R.id.hover)
+                        hoverView.animate()
+                                .alpha(0.0f)
+                                .setDuration(300).setListener(object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator?) {
+                                hoverView.visibility = INVISIBLE
+                            }
+                        })
+                    }
                 }
                 DragEvent.ACTION_DROP -> {
                     dropped = true
@@ -347,7 +376,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         val windowWidth = getWindowWidth()
 
         view.post({
-            val folderHeidht = cardView.measuredHeight
+            val folderHeidht = if (cardView.measuredHeight > (view.measuredHeight - 32)) (view.measuredHeight - 32) else cardView.measuredHeight
             val folderWidth = cardView.measuredWidth
 
             val halfAnchorWidth = anchor.width / 2
@@ -359,14 +388,33 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
 
             val param = RelativeLayout.LayoutParams(cardView.layoutParams)
             param.topMargin = if (windowHeight < location[1] + anchor.height + folderHeidht) {
-                location[1] - folderHeidht
+                if (location[1] - folderHeidht < 0) 16 else location[1] - folderHeidht
             } else {
                 location[1]
             }
             param.leftMargin = getFolderLeftMargin()
+            param.height = folderHeidht
             cardView.layoutParams = param
             cardView.visibility = VISIBLE
         })
+
+        val name = view.find<TextView>(R.id.name)
+        name.text = if(item.name.isEmpty()) getString(R.string.unnamedFolder) else item.name
+
+        val nameInput = view.find<EditText>(R.id.nameInput)
+        name.onClick {
+            name.visibility = GONE
+            nameInput.visibility = VISIBLE
+            nameInput.setText(item.name)
+            nameInput.post({
+                nameInput.requestFocus();
+                nameInput.setSelection(item.name.length)
+                val imm = activity?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(nameInput, InputMethodManager.SHOW_IMPLICIT)
+            })
+        }
+
+        nameInput.textChangedListener { afterTextChanged { folderPopupItem?.name = nameInput.text.toString() } }
 
         view.onClick {
             dismissFolderPopup()
@@ -375,6 +423,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
 
     private fun dismissFolderPopup() {
         folderPanel.removeAllViews()
+        presenter.updateFolder(activity!!, folderPopupItem)
         folderPopupItem = null
     }
 

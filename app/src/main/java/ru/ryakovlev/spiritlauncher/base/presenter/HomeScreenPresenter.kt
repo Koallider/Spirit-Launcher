@@ -17,6 +17,7 @@ import ru.ryakovlev.spiritlauncher.R
 import ru.ryakovlev.spiritlauncher.database.HomeScreenDatabase
 import ru.ryakovlev.spiritlauncher.domain.ApplicationInfo
 import ru.ryakovlev.spiritlauncher.domain.HomeScreenIcon
+import ru.ryakovlev.spiritlauncher.domain.HomeScreenItem
 import ru.ryakovlev.spiritlauncher.domain.Shortcut
 import ru.ryakovlev.spiritlauncher.event.*
 
@@ -176,6 +177,17 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
 
     fun shortcutClicked(item: Shortcut) {
         EventBus.getDefault().post(ShortcutEvent(item))
+    }
+
+    fun updateFolder(context: Context, folder: HomeScreenIcon?){
+        folder?.let {
+            async(UI) {
+                bg {
+                    HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(it)
+                    view.updateItem(it)
+                }
+            }
+        }
     }
 
     interface View : MvpView {

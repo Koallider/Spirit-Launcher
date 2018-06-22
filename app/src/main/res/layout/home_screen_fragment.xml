@@ -11,7 +11,7 @@
         android:layout_height="match_parent"
         android:layout_above="@+id/bottomPanel"
         android:id="@+id/pager"
-        app:columnCount="4"
+        app:columnCount="5"
         app:rowCount="5">
 
 

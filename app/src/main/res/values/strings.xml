@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">SpiritLauncher</string>
     <string name="warning_not_default">To make shortcuts work you need to set SpiritLauncher as Default</string>
+
+    <string name="unnamedFolder">Unnamed folder</string>
 </resources>
