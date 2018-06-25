@@ -57,13 +57,15 @@ class TouchListener<T>(val item: T): View.OnTouchListener {
         {
             if(down && Math.abs(event.x - downX) > 10 || Math.abs(event.y - downY) > 10) {
                 if(longTapped) {
-                    Log.w("touchListener", "drag")
-                    down = false
-                    moveListener?.invoke(item)
-
+                    synchronized(this){
+                        if(down){
+                            Log.w("touchListener", "drag $down")
+                            down = false
+                            moveListener?.invoke(item)
+                        }
+                    }
                 }else{
                     Log.w("touchListener", "scroll")
-
                     moved = true
                 }
             }

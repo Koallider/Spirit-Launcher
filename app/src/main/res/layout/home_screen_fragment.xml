@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
 
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:fitsSystemWindows="true">
 
     <android.support.v7.widget.GridLayout
+        android:id="@+id/pager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/bottomPanel"
-        android:id="@+id/pager"
         app:columnCount="5"
         app:rowCount="5">
 
@@ -18,25 +18,39 @@
     </android.support.v7.widget.GridLayout>
 
     <RelativeLayout
+        android:id="@+id/bottomPanel"
         android:layout_width="match_parent"
         android:layout_height="80dp"
-        android:layout_alignParentBottom="true"
-        android:id="@+id/bottomPanel">
+        android:layout_alignParentBottom="true">
+
+        <android.support.v7.widget.GridLayout
+            android:id="@+id/quickAccessLeft"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_toLeftOf="@+id/appListButton"
+            app:rowCount="1"/>
 
         <ImageView
+            android:id="@+id/appListButton"
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:layout_centerHorizontal="true"
             android:layout_centerVertical="true"
-            android:src="@mipmap/ic_launcher"
-            android:id="@+id/appListButton"/>
+            android:src="@drawable/ic_apps_black_24dp"
+            android:tint="@android:color/white"/>
 
+        <android.support.v7.widget.GridLayout
+            android:id="@+id/quickAccessRight"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_toRightOf="@+id/appListButton"
+            app:rowCount="1"/>
     </RelativeLayout>
 
     <RelativeLayout
+        android:id="@+id/folderPanel"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/folderPanel">
+        android:layout_height="match_parent">
 
     </RelativeLayout>
 

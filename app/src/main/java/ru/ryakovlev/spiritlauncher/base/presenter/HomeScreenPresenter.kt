@@ -45,41 +45,53 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
         EventBus.getDefault().post(ShowAppListEvent())
     }
 
-    fun dragEnded(context: Context, x: Int, y: Int, droppedItem: HomeScreenIcon) {
+    fun dragEnded(context: Context, x: Int, y: Int, quickAccess: Boolean, droppedItem: HomeScreenIcon) {
         async(UI) {
             bg {
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().delete(droppedItem)
                 appList?.remove(droppedItem)
                 view.deleteItem(droppedItem)
-                dragEnded(context, x, y, droppedItem.packageNameList, droppedItem)
+                dragEnded(context, x, y, quickAccess, droppedItem.packageNameList, droppedItem)
             }
         }
     }
 
-    fun dragEnded(context: Context, x: Int, y: Int, packageName: String) {
+    fun dragEnded(context: Context, x: Int, y: Int, quickAccess: Boolean, packageName: String) {
         async(UI) {
             bg {
-                dragEnded(context, x, y, listOf(packageName), null)
+                view.folderPopupItem?.let {
+                    val newList = it.packageNameList.toMutableList()
+                    newList.removeAt(it.packageNameList.indexOfFirst { it == packageName })
+                    it.packageNameList = newList
+                    HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(it)
+                    view.updateItem(it)
+                }
+                dragEnded(context, x, y, quickAccess, listOf(packageName), null)
             }
         }
     }
 
 
-    private fun dragEnded(context: Context, x: Int, y: Int, packageNameList: List<String>, droppedItem: HomeScreenIcon?) {
+    private fun dragEnded(context: Context, x: Int, y: Int, quickAccess: Boolean, packageNameList: List<String>, droppedItem: HomeScreenIcon?) {
         val icon = appList?.firstOrNull { it.x == x && it.y == y }
+
         icon?.let {
             if(droppedItem != null && icon.id == droppedItem.id){
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().insert(it)
                 appList?.add(it)
+                it.quickAccess = quickAccess
                 view.updateItem(it)
             }else {
                 it.packageNameList = it.packageNameList + packageNameList
                 HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(it)
+                it.quickAccess = quickAccess
                 view.updateItem(it)
             }
 
         } ?: run {
-            val newIcon = HomeScreenIcon(0, x, y, packageNameList)
+            val newIcon = HomeScreenIcon(0, 0, x, y, packageNameList)
+            newIcon.name = droppedItem?.name ?: ""
+            newIcon.quickAccess = quickAccess
             newIcon.id = HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().insert(newIcon)
             appList?.add(newIcon)
             view.updateItem(newIcon)
@@ -89,7 +101,7 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
 
     fun onIconLongClick(context: Context, item: HomeScreenIcon) {
         if (item.packageNameList.size > 1) {
-            view.dragApp(item.x, item.y)
+            view.dragApp(item.x, item.y, item.quickAccess)
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
@@ -101,21 +113,21 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
             try {
                 val shortcutList = launcherApps.getShortcuts(shortcutQuery, Process.myUserHandle()).map { Shortcut(it) }.sortedBy { it.shortcutInfo.id }
                 if (shortcutList.isNotEmpty()) {
-                    view.showShortcuts(shortcutList, item.x, item.y)
+                    view.showShortcuts(shortcutList, item.x, item.y, item.quickAccess)
                 } else {
-                    view.dragApp(item.x, item.y)
+                    view.dragApp(item.x, item.y, item.quickAccess)
                 }
             } catch (e: SecurityException) {
                 Toast.makeText(context, R.string.warning_not_default, Toast.LENGTH_SHORT).show()
                 //TODO set as default
             }
         } else {
-            view.dragApp(item.x, item.y)
+            view.dragApp(item.x, item.y, item.quickAccess)
         }
     }
 
     fun onIconMove(item: HomeScreenIcon) {
-        view.dragApp(item.x, item.y)
+        view.dragApp(item.x, item.y, item.quickAccess)
     }
 
     fun onIconClick(item: HomeScreenIcon) {
@@ -158,17 +170,6 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
         view.dragApp(position)
     }
 
-    fun dragStarted(context: Context, folderIcon: HomeScreenIcon, packageName: String){
-        async(UI) {
-            bg {
-                val newList = folderIcon.packageNameList.toMutableList()
-                newList.removeAt(folderIcon.packageNameList.indexOfFirst { it == packageName })
-                folderIcon.packageNameList = newList
-                HomeScreenDatabase.getInstance(context)!!.homeScreenIconDao().update(folderIcon)
-                view.updateItem(folderIcon)
-            }
-        }
-    }
 
     fun appClicked(applicationInfo: ApplicationInfo) {
         EventBus.getDefault().post(StartApplicationEvent(applicationInfo.packageName.toString()))
@@ -193,19 +194,21 @@ class HomeScreenPresenter<V : HomeScreenPresenter.View> : MvpBasePresenter<V>() 
     interface View : MvpView {
         fun showAppList(appList: List<HomeScreenIcon>)
 
-        fun dragApp(x: Int, y: Int)
+        fun dragApp(x: Int, y: Int, quickAccess: Boolean)
 
         fun showPopup(item: HomeScreenIcon)
 
         fun dragApp(position: Int)
 
-        fun showShortcuts(shortcutList: List<Shortcut>, x: Int, y: Int)
+        fun showShortcuts(shortcutList: List<Shortcut>, x: Int, y: Int, quickAccess: Boolean)
 
         fun showShortcuts(shortcutList: List<Shortcut>, position: Int)
 
         fun updateItem(item: HomeScreenIcon)
 
         fun deleteItem(item: HomeScreenIcon)
+
+        var folderPopupItem: HomeScreenIcon?
     }
 
 }

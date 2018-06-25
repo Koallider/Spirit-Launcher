@@ -3,8 +3,6 @@ package ru.ryakovlev.spiritlauncher.base.view
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.Observer
 import android.content.ClipData
 import android.content.Context
 import android.content.pm.LauncherApps
@@ -21,8 +19,6 @@ import android.view.*
 import android.view.View.*
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
-import kotlinx.android.synthetic.main.app_list_fragment.*
-import kotlinx.android.synthetic.main.folder_item.*
 import kotlinx.android.synthetic.main.home_screen_fragment.*
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.launch
@@ -39,7 +35,6 @@ import ru.ryakovlev.spiritlauncher.domain.ApplicationInfo
 import ru.ryakovlev.spiritlauncher.domain.HomeScreenIcon
 import ru.ryakovlev.spiritlauncher.domain.Shortcut
 import ru.ryakovlev.spiritlauncher.util.TouchListener
-import ru.ryakovlev.spiritlauncher.util.checkItemsAre
 import ru.ryakovlev.spiritlauncher.widgets.DropPanel
 
 
@@ -50,8 +45,9 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
 
 
     lateinit var panels: ArrayList<ArrayList<DropPanel>>
+    lateinit var quickAccessList: ArrayList<DropPanel>
 
-    var folderPopupItem: HomeScreenIcon? = null
+    override var folderPopupItem: HomeScreenIcon? = null
     var appListView: RecyclerView? = null
     var shortcutPopup: PopupWindow? = null
 
@@ -60,11 +56,19 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         showList(appList)
     }
 
+    private fun getDropPanel(item: HomeScreenIcon) : DropPanel = getDropPanel(item.x, item.y, item.quickAccess)
+
+    private fun getDropPanel(x: Int, y: Int, quickAccess: Boolean) : DropPanel = if (quickAccess) {
+        quickAccessList[x]
+    } else {
+        panels[x][y]
+    }
+
     private fun showList(list: List<HomeScreenIcon>?) {
         clear()
         list?.let {
             for (item in list) {
-                panels[item.x][item.y].addView(
+                getDropPanel(item).addView(
                         if (item.packageNameList.size == 1) {
                             createAppView(item)
                         } else {
@@ -78,26 +82,30 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
 
     override fun updateItem(item: HomeScreenIcon) {
         launch(UI) {
-            panels[item.x][item.y].removeAllViews()
-            panels[item.x][item.y].addView(
-                    if (item.packageNameList.size == 1) {
-                        createAppView(item)
-                    } else {
-                        createFolderView(item)
-                    }
-            )
+            with(getDropPanel(item)) {
+                this.removeAllViews()
+                this.addView(
+                        if (item.packageNameList.size == 1) {
+                            createAppView(item)
+                        } else {
+                            createFolderView(item)
+                        }
+                )
+            }
+
         }
     }
 
     override fun deleteItem(item: HomeScreenIcon) {
         launch(UI) {
-            panels[item.x][item.y].removeAllViews()
+            getDropPanel(item).removeAllViews()
         }
     }
 
     private fun clear() {
         panels.flatMap { it }
                 .forEach { it.removeAllViews() }
+        quickAccessList.forEach { it.removeAllViews() }
     }
 
     private fun createAppView(icon: HomeScreenIcon): View {
@@ -113,7 +121,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             label.text = name
             label.textColor = Color.WHITE
             label.setShadowLayer(2f, 1f, 1f, Color.BLACK)
-
+            label.visibility = if(icon.quickAccess) GONE else VISIBLE
             view.find<ImageView>(R.id.icon).setImageDrawable(iconView)
 
             val touchListener = TouchListener(icon)
@@ -162,6 +170,8 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
             label.text = icon.name
             label.textColor = Color.WHITE
             label.setShadowLayer(2f, 1f, 1f, Color.BLACK)
+            label.visibility = if(icon.quickAccess) GONE else VISIBLE
+
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
         }
@@ -187,6 +197,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         pager.useDefaultMargins = false
 
         panels = ArrayList()
+        quickAccessList = ArrayList()
         appListButton.onClick { presenter.appListCLicked() }
         val dragListener = MyDragListener()
         for (i in 0 until 5) {
@@ -199,6 +210,18 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
                 pager.addView(layout)
                 panels[i].add(layout)
             }
+        }
+
+        for (i in 0 until 4) {
+            val layout = DropPanel(this.context!!, i, 0)
+            layout.setOnDragListener(dragListener)
+            layout.layoutParams = createGridLayoutParams(i, 0)
+            if (i < 2) {
+                quickAccessLeft.addView(layout)
+            } else {
+                quickAccessRight.addView(layout)
+            }
+            quickAccessList.add(layout)
         }
 
         presenter.load(context!!)
@@ -249,8 +272,8 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
                     val container = v as DropPanel
                     val tag = view.getTag(R.id.package_tag)
                     when (tag) {
-                        is String -> presenter.dragEnded(activity!!, container.c, container.r, tag)
-                        is HomeScreenIcon -> presenter.dragEnded(activity!!, container.c, container.r, tag)
+                        is String -> presenter.dragEnded(activity!!, container.c, container.r, quickAccessList.contains(container), tag)
+                        is HomeScreenIcon -> presenter.dragEnded(activity!!, container.c, container.r, quickAccessList.contains(container), tag)
                     }
                 }
                 DragEvent.ACTION_DRAG_ENDED -> {
@@ -267,8 +290,8 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
     }
 
     @TargetApi(Build.VERSION_CODES.N_MR1)
-    override fun showShortcuts(shortcutList: List<Shortcut>, x: Int, y: Int) {
-        showShortcuts(shortcutList, panels[x][y])
+    override fun showShortcuts(shortcutList: List<Shortcut>, x: Int, y: Int, quickAccess: Boolean) {
+        showShortcuts(shortcutList, getDropPanel(x, y, quickAccess))
     }
 
     @TargetApi(Build.VERSION_CODES.N_MR1)
@@ -306,10 +329,10 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         }
     }
 
-    override fun dragApp(x: Int, y: Int) {
+    override fun dragApp(x: Int, y: Int, quickAccess: Boolean) {
         shortcutPopup?.dismiss()
         if (!paused) {
-            val anchor = panels[x][y].firstChild { true };
+            val anchor = getDropPanel(x, y, quickAccess).firstChild { true }
 
             val data = ClipData.newPlainText("", "")
             val shadowBuilder = View.DragShadowBuilder(
@@ -331,10 +354,11 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         paused = false
     }
 
+
     override fun showPopup(item: HomeScreenIcon) {
         dismissFolderPopup()
         folderPopupItem = item
-        val anchor = panels[item.x][item.y]
+        val anchor = getDropPanel(item)
         val location = IntArray(2, { 0 })
         anchor.getLocationOnScreen(location)
 
@@ -399,7 +423,7 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
         })
 
         val name = view.find<TextView>(R.id.name)
-        name.text = if(item.name.isEmpty()) getString(R.string.unnamedFolder) else item.name
+        name.text = if (item.name.isEmpty()) getString(R.string.unnamedFolder) else item.name
 
         val nameInput = view.find<EditText>(R.id.nameInput)
         name.onClick {
@@ -436,11 +460,8 @@ class HomeScreenView : HomeScreenPresenter.View, BaseFragment<HomeScreenView, Ho
                 anchor)
 
         anchor?.startDrag(data, shadowBuilder, anchor, 0)
-        folderPopupItem?.let {
-            presenter.dragStarted(activity!!, it, (appListView?.adapter as ApplicationInfoAdapter).applications[position].packageName.toString())
-        }
-        dismissFolderPopup()
 
+        folderPanel.removeAllViews()
     }
 
     override fun createPresenter() = HomeScreenPresenter<HomeScreenView>()

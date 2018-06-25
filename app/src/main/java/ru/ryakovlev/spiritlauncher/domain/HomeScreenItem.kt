@@ -5,6 +5,7 @@ package ru.ryakovlev.spiritlauncher.domain
  */
 interface HomeScreenItem {
     val id: Long
+    val page: Int
     val x: Int
     val y: Int
     val width: Int
